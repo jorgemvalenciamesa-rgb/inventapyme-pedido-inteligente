@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pedido inteligente de InventaPyme</title>
+<meta name="description" content="Demo del componente de IA de InventaPyme: un modelo de machine learning que pronostica las ventas de una tienda de barrio y sugiere qué pedir.">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<style>
+/* Layout: banda de marca arriba; celular de InventaPyme a la izquierda y «cómo decide la IA» a la derecha; debajo, pruebas y límites. Identidad del Eje 3. */
+:root{
+  --navy:#0B1F4B; --blue:#1747C9; --orange:#FF9F2E; --green:#0E7A52; --red:#B42318; --amber:#92400E;
+  --bg:#F4F7FB; --card:#FFFFFF; --line:#DCE3EF; --text:#1B2437; --muted:#526071;
+  --blue-bg:#E6EEFF; --green-bg:#DCF5E8; --red-bg:#FEE4E2; --amber-bg:#FEF3C7; --bar:#C9D3E6;
+  --phone-edge:#0F172A; --on-accent:#FFFFFF; --band1:#0B1F4B; --band2:#1747C9;
+  --font:-apple-system,"SF Pro Text","Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --navy:#DCE6FF; --blue:#7FA2FF; --orange:#FFB054; --green:#4ACB91; --red:#FF8A80; --amber:#F5C66B;
+  --bg:#0C1324; --card:#141D33; --line:#28344F; --text:#E6ECF8; --muted:#9AA8C2;
+  --blue-bg:#1B2A52; --green-bg:#123628; --red-bg:#3D1A1A; --amber-bg:#3A2E12; --bar:#3A4766;
+  --phone-edge:#000000; --on-accent:#0C1324; --band1:#081634; --band2:#1A3A9A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --navy:#DCE6FF; --blue:#7FA2FF; --orange:#FFB054; --green:#4ACB91; --red:#FF8A80; --amber:#F5C66B;
+  --bg:#0C1324; --card:#141D33; --line:#28344F; --text:#E6ECF8; --muted:#9AA8C2;
+  --blue-bg:#1B2A52; --green-bg:#123628; --red-bg:#3D1A1A; --amber-bg:#3A2E12; --bar:#3A4766;
+  --phone-edge:#000000; --on-accent:#0C1324; --band1:#081634; --band2:#1A3A9A; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.2}
+.num{font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+
+.band{background:linear-gradient(100deg,var(--band1),var(--band2));color:#fff;margin-top:calc(-1*env(safe-area-inset-top,0px));padding-top:calc(env(safe-area-inset-top,0px) + 28px);padding-bottom:28px}
+.band .wrap{display:flex;gap:20px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+.band h1{font-size:clamp(26px,4vw,38px);font-weight:800;letter-spacing:-.4px}
+.band p{margin:6px 0 0;opacity:.9;max-width:62ch}
+.tag{display:inline-flex;align-items:center;gap:8px;background:#FF9F2E;color:#0B1F4B;font-weight:800;font-size:13px;padding:7px 14px;border-radius:999px;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap}
+.note{background:var(--amber-bg);color:var(--amber);font-size:13.5px;padding:10px 14px;border-radius:10px;margin-top:18px}
+
+.main{display:grid;grid-template-columns:360px minmax(0,1fr);gap:32px;padding-block:28px}
+@media (max-width:900px){.main{grid-template-columns:1fr}.phone{margin:0 auto}}
+
+/* teléfono */
+.phone{width:100%;max-width:350px;border:10px solid var(--phone-edge);border-radius:44px;background:var(--card);overflow:hidden;box-shadow:0 22px 46px rgba(11,31,75,.22);position:relative}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:104px;height:22px;background:var(--phone-edge);border-radius:0 0 14px 14px}
+.sb{display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:8px 22px 2px}
+.ph-h{padding:6px 18px 8px;font-size:20px;font-weight:800;color:var(--navy)}
+.ai-card{margin:0 14px 8px;background:var(--blue);color:var(--on-accent);border-radius:14px;padding:10px 12px;font-size:12.5px;line-height:1.4}
+.ai-card b{display:block;font-size:13.5px}
+.plist{list-style:none;margin:0;padding:0;max-height:470px;overflow:auto}
+.pitem{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line);cursor:pointer;background:none;border-left:4px solid transparent;width:100%;text-align:left}
+.pitem[aria-pressed="true"]{background:var(--blue-bg);border-left-color:var(--blue)}
+.pitem input{width:18px;height:18px;accent-color:var(--blue);flex:none}
+.pitem .n{flex:1;min-width:0;font-weight:700;font-size:14px}
+.pitem small{display:block;font-weight:500;color:var(--muted);font-size:11.5px}
+.pitem .q{font-weight:800;font-size:14px;white-space:nowrap}
+.chip{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
+.chip.r{background:var(--red-bg);color:var(--red)}.chip.a{background:var(--amber-bg);color:var(--amber)}.chip.g{background:var(--green-bg);color:var(--green)}
+.total{display:flex;justify-content:space-between;align-items:center;margin:10px 14px;padding:10px 12px;background:var(--bg);border-radius:12px;font-size:13px;color:var(--muted);font-weight:600}
+.total b{font-size:20px;color:var(--navy)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;font-weight:800;cursor:pointer;padding:12px 14px;text-decoration:none}
+.btn.g{background:var(--green);color:var(--on-accent)}
+.btn.l{background:transparent;color:var(--blue);border:2px solid var(--blue)}
+.ph-actions{display:grid;gap:8px;margin:0 14px 18px}
+.cap{font-size:13px;color:var(--muted);margin-top:12px;max-width:350px}
+
+/* panel derecho */
+.panel{min-width:0;display:grid;gap:18px;align-content:start}
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.field{display:grid;gap:4px;font-size:12.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.field select,.field input[type=number]{background:var(--card);border:2px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px;text-transform:none;letter-spacing:0;font-weight:600;color:var(--text);min-width:0}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{width:36px;height:40px;border-radius:10px;border:2px solid var(--line);background:var(--card);font-weight:800;cursor:pointer}
+.stepper input{width:80px;text-align:center}
+.toggle{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;cursor:pointer;padding-bottom:9px}
+.toggle input{width:18px;height:18px;accent-color:var(--orange)}
+
+.flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:700px){.flow{grid-template-columns:1fr}}
+.step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.step h3{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--blue);margin-bottom:8px}
+.step ul{margin:0;padding-left:18px;font-size:13.5px;display:grid;gap:4px}
+.step .big{font-size:26px;font-weight:800;color:var(--navy)}
+.factors{display:grid;gap:5px;font-size:13px}
+.factors div{display:grid;grid-template-columns:84px 1fr 58px;gap:8px;align-items:center}
+.factors i{display:block;height:8px;border-radius:4px;background:var(--orange)}
+.factors i.neg{background:var(--muted)}
+
+.chartbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 14px 8px;min-width:0}
+.chartbox h3{font-size:16px;color:var(--navy)}
+.chartbox p{margin:2px 0 6px;font-size:13px;color:var(--muted)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:4px}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px;background:var(--c)}
+.svgwrap{overflow-x:auto}
+svg text{fill:var(--muted);font-size:11px;font-family:var(--font)}
+
+.decision{background:var(--card);border:2px solid var(--blue);border-radius:14px;padding:16px;display:grid;gap:8px}
+.decision .msg{font-size:17px;font-weight:700;color:var(--navy)}
+.decision .why{font-size:14px;color:var(--text)}
+.decision .human{font-size:13px;color:var(--muted)}
+
+.sec{padding-block:8px 28px;display:grid;gap:14px}
+.sec h2{font-size:24px;color:var(--navy)}
+.sec>p{margin:0;max-width:75ch;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:800px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.kpi .l{font-size:12.5px;color:var(--muted);font-weight:700}
+.kpi .v{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-top:6px}
+.kpi .v s{color:var(--muted);font-size:15px}
+.kpi .v b{font-size:24px;color:var(--green)}
+.kpi .v b.worse{color:var(--amber)}
+.tbl{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:620px}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+td.best{font-weight:800;color:var(--green)}
+.limits{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:800px){.limits{grid-template-columns:1fr}}
+.limits div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:14px}
+.limits b{display:block;color:var(--navy);margin-bottom:4px}
+footer{border-top:1px solid var(--line);padding-block:18px 30px;font-size:12.5px;color:var(--muted)}
+.copyok{font-size:12.5px;color:var(--green);text-align:center;min-height:1em}
+@media (prefers-reduced-motion:no-preference){.pitem,.factors i{transition:background .2s,width .3s}}
+</style>
+
+<header class="band"><div class="wrap">
+  <div><h1>Pedido inteligente de InventaPyme</h1>
+  <p>Un modelo de machine learning que predice cuánto venderá la tienda cada día y sugiere qué pedir antes de que algo se acabe. Cambia los datos y la IA recalcula en vivo.</p></div>
+  <span class="tag">Componente de IA · Eje 4</span>
+</div></header>
+
+<div class="wrap">
+<p class="note">Tienda de ejemplo: «Granero Central» de Pereira (negocio MP-002 de la base de datos del Eje 2). Las ventas son simuladas para demostrar el funcionamiento; el modelo se entrenó de verdad con scikit-learn sobre esos datos.</p>
+
+<div class="main">
+  <!-- CELULAR -->
+  <div>
+    <div class="phone" aria-label="Pantalla del celular: qué pedir">
+      <div class="notch"></div>
+      <div class="sb"><span>9:41</span><span>●●● 100 %</span></div>
+      <div class="ph-h">Qué pedir</div>
+      <div class="ai-card"><b>La IA calculó tu pedido</b><span id="aiCardTxt"></span></div>
+      <ul class="plist" id="plist"></ul>
+      <div class="total"><span>Costo aproximado</span><b class="num" id="total">$ 0</b></div>
+      <div class="ph-actions">
+        <a class="btn g" id="wa" href="#" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a>
+        <button class="btn l" id="copy" type="button">Copiar el mensaje</button>
+        <div class="copyok" id="copyok" aria-live="polite"></div>
+      </div>
+    </div>
+    <p class="cap">Toca un producto para ver cómo decidió la IA. La casilla lo incluye o lo quita del pedido; tú siempre tienes la última palabra.</p>
+  </div>
+
+  <!-- CÓMO DECIDE -->
+  <div class="panel">
+    <div class="controls">
+      <label class="field">Producto<select id="selProd"></select></label>
+      <label class="field">Semana a planear<select id="selWeek"></select></label>
+      <div class="field">Unidades en el estante
+        <div class="stepper"><button type="button" id="minus" aria-label="Restar una unidad">−</button><input type="number" id="stock" min="0" max="999"><button type="button" id="plus" aria-label="Sumar una unidad">+</button></div>
+      </div>
+      <button class="btn l" id="sell" type="button" style="padding:9px 12px">Registrar 1 venta</button>
+      <label class="toggle"><input type="checkbox" id="cmp" checked> Comparar con el cuaderno</label>
+    </div>
+
+    <div class="decision" aria-live="polite">
+      <div class="msg" id="dMsg"></div>
+      <div class="why" id="dWhy"></div>
+      <div class="human" id="dHuman"></div>
+    </div>
+
+    <div class="flow">
+      <div class="step"><h3>1 · Entradas</h3><ul id="inList"></ul></div>
+      <div class="step"><h3>2 · Procesamiento</h3>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Lo que el modelo aprendió para este producto: cuánto sube la venta frente a un lunes normal.</div>
+        <div class="factors" id="factors"></div></div>
+      <div class="step"><h3>3 · Salidas</h3><ul id="outList"></ul></div>
+    </div>
+
+    <div class="chartbox">
+      <h3 id="chTitle">Ventas y pronóstico</h3>
+      <p>Barras grises: lo que se vendió las últimas 2 semanas. Barras azules: lo que la IA espera vender, con su margen de error.</p>
+      <div class="svgwrap"><svg id="chart" viewBox="0 0 760 250" width="100%" role="img" aria-label="Gráfica de ventas y pronóstico"></svg></div>
+      <div class="legend"><span style="--c:var(--bar)">Vendido</span><span style="--c:var(--blue)">Pronóstico IA</span><span style="--c:var(--orange)" id="lgCmp">Cálculo del cuaderno</span></div>
+    </div>
+  </div>
+</div>
+
+<section class="sec">
+  <h2>¿Funciona? Prueba con 8 semanas que el modelo nunca vio</h2>
+  <p id="testTxt"></p>
+  <div class="kpis" id="kpis"></div>
+  <div class="tbl"><table id="tblErr"></table></div>
+  <p style="font-size:13px">Error = cuántas unidades se equivoca en promedio cada día, como porcentaje de lo que se vende. Random Forest es un modelo más pesado que se probó como alternativa; la regresión Ridge quedó elegida porque acierta igual o mejor, es liviana y funciona en el celular sin internet.</p>
+</section>
+
+<section class="sec">
+  <h2>Lo que la IA no puede hacer</h2>
+  <div class="limits">
+    <div><b>No adivina lo que nunca ha visto</b>Un paro, una ola de calor o una promoción del supermercado vecino no están en los datos. Por eso el tendero puede cambiar cualquier cantidad.</div>
+    <div><b>Con poca venta se equivoca más</b>Productos que se venden de a 3 o 4 al día, como el café, tienen errores cercanos al 50 %. La app lo avisa y sugiere pedir por mínimos.</div>
+    <div><b>Solo es tan buena como los registros</b>Si las ventas no se registran, el modelo aprende mal. La IA depende de que el negocio use la app todos los días.</div>
+  </div>
+</section>
+
+<footer>InventaPyme · Componente de IA «Pedido inteligente» · Jorge Mario Valencia Mesa · Saber Conocer, Eje 4 · Fundación Universitaria del Área Andina · Modelo: regresión Ridge (scikit-learn 1.6), un modelo por producto · Datos simulados.</footer>
+</div>
+
+<script>
+const DATA = {"negocio": "Granero Central (Pereira) – MP-002, base de datos Eje 2", "modelo": "Regresión Ridge (scikit-learn) sobre el factor de venta, un modelo por producto", "variables": ["martes", "miércoles", "jueves", "viernes", "sábado", "domingo", "quincena", "festivo", "temporada_diciembre"], "entrenamiento": "2025-12-08 a 2026-09-27", "prueba": "2026-09-28 a 2026-11-22 (8 semanas)", "ultimo_dia_datos": "2026-11-22", "festivos": ["2025-12-08", "2025-12-25", "2026-01-01", "2026-01-12", "2026-03-23", "2026-04-02", "2026-04-03", "2026-05-01", "2026-05-18", "2026-06-08", "2026-06-15", "2026-06-29", "2026-07-20", "2026-08-07", "2026-08-17", "2026-10-12", "2026-11-02", "2026-11-16", "2026-12-08", "2026-12-25", "2027-01-01", "2027-01-11"], "productos": {"Arroz 500 g": {"intercepto": 0.7559212630001713, "coeficientes": {"martes": 0.06278300933633776, "miércoles": 0.17103993790778088, "jueves": 0.18514746034141044, "viernes": 0.2722394004192159, "sábado": 0.3063035249331049, "domingo": 0.28942956805322845, "quincena": 0.27600783498584797, "festivo": 0.1484984964865964, "temporada_diciembre": -0.011064822394310338}, "desviacion_error": 4.198774005444636, "precio": 2600, "costo": 2100, "vida_util_dias": null, "cada_cuantos_dias_pide": 7}, "Leche entera 1 L": {"intercepto": 0.8027734671884876, "coeficientes": {"martes": 0.09888317518430234, "miércoles": 0.13299014205065332, "jueves": 0.1278503984572288, "viernes": 0.24380141766747324, "sábado": 0.2941406880003554, "domingo": 0.30906434685827605, "quincena": 0.11079286265023491, "festivo": 0.11943328826285217, "temporada_diciembre": 0.004859493052423287}, "desviacion_error": 4.962240259999522, "precio": 4300, "costo": 3600, "vida_util_dias": 6, "cada_cuantos_dias_pide": 2}, "Huevos (unidad)": {"intercepto": 0.7752023524432093, "coeficientes": {"martes": 0.025593399555843256, "miércoles": 0.1257081773150784, "jueves": 0.11449912876270395, "viernes": 0.2139859950417402, "sábado": 0.3727136405856255, "domingo": 0.35816241725276415, "quincena": 0.20617055217472907, "festivo": 0.21769010141783793, "temporada_diciembre": -0.009260917079681501}, "desviacion_error": 8.30427964567495, "precio": 650, "costo": 520, "vida_util_dias": 20, "cada_cuantos_dias_pide": 3}, "Pan tajado": {"intercepto": 0.7597827045078727, "coeficientes": {"martes": 0.15171121190587894, "miércoles": 0.15834141732685578, "jueves": 0.1440710187342629, "viernes": 0.21218682130490135, "sábado": 0.4477735150093712, "domingo": 0.38546244892024767, "quincena": 0.08887230236233053, "festivo": 0.3008939224469949, "temporada_diciembre": -0.008834901179858246}, "desviacion_error": 3.3066875802335405, "precio": 5200, "costo": 4100, "vida_util_dias": 5, "cada_cuantos_dias_pide": 2}, "Gaseosa 1,5 L": {"intercepto": 0.644481105500143, "coeficientes": {"martes": 0.0747485928992709, "miércoles": 0.06886891707842609, "jueves": 0.17527707248598315, "viernes": 0.2880267525091623, "sábado": 0.7743991522258157, "domingo": 0.5648636706935004, "quincena": 0.26751439254433, "festivo": 0.27067721756436164, "temporada_diciembre": 0.05500679817746764}, "desviacion_error": 4.384001265449635, "precio": 5500, "costo": 4300, "vida_util_dias": null, "cada_cuantos_dias_pide": 7}, "Aceite 1 L": {"intercepto": 0.8289655301448088, "coeficientes": {"martes": 0.027866455575215505, "miércoles": 0.12059176585962209, "jueves": -0.050974386803707236, "viernes": 0.16788866064908178, "sábado": 0.21908294828438357, "domingo": 0.10816051786553907, "quincena": 0.4649550757539092, "festivo": -0.058135881371993374, "temporada_diciembre": 0.11403378708271271}, "desviacion_error": 2.53472804239803, "precio": 9800, "costo": 8300, "vida_util_dias": null, "cada_cuantos_dias_pide": 7}, "Café 250 g": {"intercepto": 0.9212027664654193, "coeficientes": {"martes": -0.05089077441608664, "miércoles": 0.06993012952713752, "jueves": 0.030003167538883976, "viernes": 0.19064502770614003, "sábado": 0.10295793797915452, "domingo": 0.013651206921844376, "quincena": 0.2445867013589598, "festivo": -0.015622350705196025, "temporada_diciembre": 0.1585010155300208}, "desviacion_error": 2.2180930153464278, "precio": 8900, "costo": 7400, "vida_util_dias": null, "cada_cuantos_dias_pide": 7}, "Papel higiénico x4": {"intercepto": 0.7196258542722676, "coeficientes": {"martes": 0.0448279370719296, "miércoles": 0.10721438436470936, "jueves": 0.23958813253367311, "viernes": 0.30119486551712216, "sábado": 0.3067371559646601, "domingo": 0.3690956690465247, "quincena": 0.3514488492809603, "festivo": 0.2310180611564809, "temporada_diciembre": 0.004207529370869262}, "desviacion_error": 2.592266877729006, "precio": 7200, "costo": 5900, "vida_util_dias": null, "cada_cuantos_dias_pide": 7}}, "historial_28_dias": {"Arroz 500 g": [16, 8, 12, 12, 21, 23, 22, 25, 17, 18, 17, 20, 11, 17, 14, 12, 10, 16, 20, 13, 22, 14, 14, 24, 22, 13, 14, 16], "Leche entera 1 L": [14, 15, 24, 21, 21, 24, 27, 15, 19, 19, 21, 23, 25, 20, 15, 15, 22, 15, 19, 21, 27, 25, 21, 17, 28, 10, 18, 22], "Huevos (unidad)": [37, 59, 47, 39, 54, 57, 69, 55, 43, 41, 65, 55, 56, 48, 42, 41, 50, 51, 57, 70, 65, 72, 59, 48, 42, 65, 67, 33], "Pan tajado": [8, 12, 11, 13, 16, 18, 7, 7, 17, 10, 16, 8, 8, 9, 14, 8, 13, 7, 15, 11, 10, 13, 13, 10, 11, 11, 18, 8], "Gaseosa 1,5 L": [7, 17, 10, 9, 12, 21, 28, 23, 21, 19, 10, 14, 22, 17, 10, 16, 11, 11, 12, 24, 34, 16, 19, 10, 13, 10, 16, 18], "Aceite 1 L": [4, 11, 4, 8, 5, 10, 10, 9, 6, 4, 9, 5, 3, 7, 6, 8, 5, 6, 7, 6, 4, 6, 9, 6, 7, 8, 3, 7], "Café 250 g": [2, 0, 3, 2, 6, 5, 4, 4, 3, 3, 3, 7, 5, 1, 1, 2, 1, 2, 9, 5, 4, 1, 5, 2, 1, 8, 9, 2], "Papel higiénico x4": [4, 2, 6, 5, 11, 10, 7, 9, 8, 2, 9, 9, 6, 10, 6, 3, 11, 10, 8, 6, 10, 6, 11, 14, 9, 10, 4, 10]}, "metricas": [{"producto": "Arroz 500 g", "venta_promedio_dia": 15.9, "error_cuaderno": 3.64, "error_ia_ridge": 3.25, "error_random_forest": 3.5, "error_cuaderno_pct": 22.9, "error_ia_pct": 20.5, "error_rf_pct": 22.0}, {"producto": "Leche entera 1 L", "venta_promedio_dia": 20.3, "error_cuaderno": 4.65, "error_ia_ridge": 3.59, "error_random_forest": 4.04, "error_cuaderno_pct": 22.9, "error_ia_pct": 17.7, "error_rf_pct": 19.9}, {"producto": "Huevos (unidad)", "venta_promedio_dia": 51.6, "error_cuaderno": 10.53, "error_ia_ridge": 6.73, "error_random_forest": 8.05, "error_cuaderno_pct": 20.4, "error_ia_pct": 13.1, "error_rf_pct": 15.6}, {"producto": "Pan tajado", "venta_promedio_dia": 10.9, "error_cuaderno": 2.98, "error_ia_ridge": 3.15, "error_random_forest": 3.2, "error_cuaderno_pct": 27.3, "error_ia_pct": 28.9, "error_rf_pct": 29.3}, {"producto": "Gaseosa 1,5 L", "venta_promedio_dia": 15.4, "error_cuaderno": 4.57, "error_ia_ridge": 3.09, "error_random_forest": 3.32, "error_cuaderno_pct": 29.7, "error_ia_pct": 20.1, "error_rf_pct": 21.5}, {"producto": "Aceite 1 L", "venta_promedio_dia": 6.1, "error_cuaderno": 2.25, "error_ia_ridge": 1.89, "error_random_forest": 2.01, "error_cuaderno_pct": 37.2, "error_ia_pct": 31.3, "error_rf_pct": 33.2}, {"producto": "Café 250 g", "venta_promedio_dia": 3.9, "error_cuaderno": 1.96, "error_ia_ridge": 1.84, "error_random_forest": 2.18, "error_cuaderno_pct": 50.6, "error_ia_pct": 47.5, "error_rf_pct": 56.3}, {"producto": "Papel higiénico x4", "venta_promedio_dia": 7.5, "error_cuaderno": 2.62, "error_ia_ridge": 2.03, "error_random_forest": 1.95, "error_cuaderno_pct": 34.9, "error_ia_pct": 26.9, "error_rf_pct": 25.9}], "simulacion": {"cuaderno": [{"producto": "Arroz 500 g", "dias_agotado": 2, "unidades_vencidas": 0, "ventas_perdidas_unid": 12, "plata_perdida_cop": 6000, "unidades_vendidas": 877, "inventario_promedio_cop": 115200}, {"producto": "Leche entera 1 L", "dias_agotado": 3, "unidades_vencidas": 0, "ventas_perdidas_unid": 18, "plata_perdida_cop": 12600, "unidades_vendidas": 1118, "inventario_promedio_cop": 92314}, {"producto": "Huevos (unidad)", "dias_agotado": 2, "unidades_vencidas": 0, "ventas_perdidas_unid": 13, "plata_perdida_cop": 1690, "unidades_vendidas": 2875, "inventario_promedio_cop": 47765}, {"producto": "Pan tajado", "dias_agotado": 1, "unidades_vencidas": 0, "ventas_perdidas_unid": 1, "plata_perdida_cop": 1100, "unidades_vendidas": 610, "inventario_promedio_cop": 68967}, {"producto": "Gaseosa 1,5 L", "dias_agotado": 2, "unidades_vencidas": 0, "ventas_perdidas_unid": 29, "plata_perdida_cop": 34800, "unidades_vendidas": 833, "inventario_promedio_cop": 242566}, {"producto": "Aceite 1 L", "dias_agotado": 3, "unidades_vencidas": 0, "ventas_perdidas_unid": 15, "plata_perdida_cop": 22500, "unidades_vendidas": 324, "inventario_promedio_cop": 220839}, {"producto": "Café 250 g", "dias_agotado": 0, "unidades_vencidas": 0, "ventas_perdidas_unid": 0, "plata_perdida_cop": 0, "unidades_vendidas": 217, "inventario_promedio_cop": 183678}, {"producto": "Papel higiénico x4", "dias_agotado": 5, "unidades_vencidas": 0, "ventas_perdidas_unid": 30, "plata_perdida_cop": 39000, "unidades_vendidas": 391, "inventario_promedio_cop": 155928}], "por_si_acaso": [{"producto": "Arroz 500 g", "dias_agotado": 0, "unidades_vencidas": 0, "ventas_perdidas_unid": 0, "plata_perdida_cop": 0, "unidades_vendidas": 889, "inventario_promedio_cop": 421875}, {"producto": "Leche entera 1 L", "dias_agotado": 0, "unidades_vencidas": 219, "ventas_perdidas_unid": 0, "plata_perdida_cop": 788400, "unidades_vendidas": 1136, "inventario_promedio_cop": 396385}, {"producto": "Huevos (unidad)", "dias_agotado": 0, "unidades_vencidas": 0, "ventas_perdidas_unid": 0, "plata_perdida_cop": 0, "unidades_vendidas": 2888, "inventario_promedio_cop": 279843}, {"producto": "Pan tajado", "dias_agotado": 0, "unidades_vencidas": 142, "ventas_perdidas_unid": 0, "plata_perdida_cop": 582200, "unidades_vendidas": 611, "inventario_promedio_cop": 215323}, {"producto": "Gaseosa 1,5 L", "dias_agotado": 0, "unidades_vencidas": 0, "ventas_perdidas_unid": 0, "plata_perdida_cop": 0, "unidades_vendidas": 862, "inventario_promedio_cop": 778376}, {"producto": "Aceite 1 L", "dias_agotado": 1, "unidades_vencidas": 0, "ventas_perdidas_unid": 3, "plata_perdida_cop": 4500, "unidades_vendidas": 336, "inventario_promedio_cop": 585891}, {"producto": "Café 250 g", "dias_agotado": 0, "unidades_vencidas": 0, "ventas_perdidas_unid": 0, "plata_perdida_cop": 0, "unidades_vendidas": 217, "inventario_promedio_cop": 500953}, {"producto": "Papel higiénico x4", "dias_agotado": 2, "unidades_vencidas": 0, "ventas_perdidas_unid": 12, "plata_perdida_cop": 15600, "unidades_vendidas": 409, "inventario_promedio_cop": 469682}], "ia": [{"producto": "Arroz 500 g", "dias_agotado": 0, "unidades_vencidas": 0, "ventas_perdidas_unid": 0, "plata_perdida_cop": 0, "unidades_vendidas": 889, "inventario_promedio_cop": 143887}, {"producto": "Leche entera 1 L", "dias_agotado": 1, "unidades_vencidas": 0, "ventas_perdidas_unid": 11, "plata_perdida_cop": 7700, "unidades_vendidas": 1125, "inventario_promedio_cop": 77592}, {"producto": "Huevos (unidad)", "dias_agotado": 0, "unidades_vencidas": 0, "ventas_perdidas_unid": 0, "plata_perdida_cop": 0, "unidades_vendidas": 2888, "inventario_promedio_cop": 39585}, {"producto": "Pan tajado", "dias_agotado": 0, "unidades_vencidas": 0, "ventas_perdidas_unid": 0, "plata_perdida_cop": 0, "unidades_vendidas": 611, "inventario_promedio_cop": 54691}, {"producto": "Gaseosa 1,5 L", "dias_agotado": 2, "unidades_vencidas": 0, "ventas_perdidas_unid": 10, "plata_perdida_cop": 12000, "unidades_vendidas": 852, "inventario_promedio_cop": 295932}, {"producto": "Aceite 1 L", "dias_agotado": 0, "unidades_vencidas": 0, "ventas_perdidas_unid": 0, "plata_perdida_cop": 0, "unidades_vendidas": 339, "inventario_promedio_cop": 246183}, {"producto": "Café 250 g", "dias_agotado": 0, "unidades_vencidas": 0, "ventas_perdidas_unid": 0, "plata_perdida_cop": 0, "unidades_vendidas": 217, "inventario_promedio_cop": 190153}, {"producto": "Papel higiénico x4", "dias_agotado": 0, "unidades_vencidas": 0, "ventas_perdidas_unid": 0, "plata_perdida_cop": 0, "unidades_vendidas": 421, "inventario_promedio_cop": 189116}]}};
+const NAMES = Object.keys(DATA.productos);
+const SHORT = {"Arroz 500 g":"Arroz","Leche entera 1 L":"Leche","Huevos (unidad)":"Huevos","Pan tajado":"Pan","Gaseosa 1,5 L":"Gaseosa","Aceite 1 L":"Aceite","Café 250 g":"Café","Papel higiénico x4":"Papel hig."};
+const UNIT = {"Huevos (unidad)":"huevos"};
+const DOW = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+const DOWS = ["dom","lun","mar","mié","jue","vie","sáb"];
+const FEST = new Set(DATA.festivos);
+const LAST = new Date(DATA.ultimo_dia_datos+"T12:00:00");
+const WEEKS = [
+  ["2026-11-23","Esta semana (23 al 29 de nov.)"],
+  ["2026-11-30","Semana de quincena (30 nov. al 6 dic.)"],
+  ["2026-12-07","Velitas y festivo (7 al 13 dic.)"],
+  ["2026-12-21","Navidad (21 al 27 dic.)"]];
+const z = 1.65; // colchón para cubrir el 95 % de los días
+const state = {prod:"Gaseosa 1,5 L", week:WEEKS[0][0], cmp:true,
+  stock:{"Arroz 500 g":95,"Leche entera 1 L":30,"Huevos (unidad)":150,"Pan tajado":12,"Gaseosa 1,5 L":18,"Aceite 1 L":30,"Café 250 g":32,"Papel higiénico x4":20},
+  sold:Object.fromEntries(NAMES.map(n=>[n,0])), manual:{}, off:{}};
+
+const fmt = n => "$ " + Math.round(n).toLocaleString("es-CO");
+const iso = d => d.toISOString().slice(0,10);
+const addDays = (s,k) => {const d=new Date(s+"T12:00:00"); d.setDate(d.getDate()+k); return d;};
+const isQ = d => [15,16,17,30,31,1,2].includes(d.getDate()) || (d.getMonth()===1 && d.getDate()>=28);
+function feats(d){
+  const w=d.getDay(); // 0 domingo
+  return {"martes":+(w===2),"miércoles":+(w===3),"jueves":+(w===4),"viernes":+(w===5),"sábado":+(w===6),"domingo":+(w===0),
+    "quincena":+isQ(d),"festivo":+FEST.has(iso(d)),"temporada_diciembre":+(d.getMonth()===11 && d.getDate()>=7)};
+}
+function m14(n){ const h=DATA.historial_28_dias[n].slice(-14); return Math.max(h.reduce((a,b)=>a+b,0)/14,0.5); }
+function factor(n,d){ const m=DATA.productos[n]; const f=feats(d); let s=m.intercepto; for(const k in m.coeficientes) s+=m.coeficientes[k]*f[k]; return Math.max(s,0); }
+function forecast(n){
+  const base=m14(n), out=[];
+  for(let h=0;h<7;h++){ const d=addDays(state.week,h); out.push({d, v:base*factor(n,d), f:feats(d)}); }
+  return out;
+}
+function plan(n){
+  const m=DATA.productos[n], R=m.cada_cuantos_dias_pide, fc=forecast(n);
+  const stock=Math.max(0,state.stock[n]-state.sold[n]);
+  const horizon=fc.slice(0,R), dem=horizon.reduce((a,b)=>a+b.v,0);
+  const safety=z*m.desviacion_error*Math.sqrt(R);
+  let qty=Math.max(0,Math.ceil(dem+safety-stock));
+  let capped=false;
+  if(m.vida_util_dias){ const sellable=fc.slice(0,Math.min(7,m.vida_util_dias)).reduce((a,b)=>a+b.v,0)+safety-stock; if(qty>sellable){qty=Math.max(0,Math.ceil(sellable));capped=true;} }
+  let cum=0, outDay=null; for(const x of fc){ cum+=x.v; if(cum>stock){ outDay=x.d; break; } }
+  const daysLeft = outDay ? Math.round((outDay-addDays(state.week,0))/864e5) : null;
+  const last7=DATA.historial_28_dias[n].slice(-7).reduce((a,b)=>a+b,0);
+  const notebook=Math.max(0,Math.round(last7/7*R - stock));
+  const finalQty = state.manual[n]!=null ? state.manual[n] : qty;
+  return {R,fc,stock,dem,safety,qty,finalQty,capped,outDay,daysLeft,notebook,base:m14(n),last7};
+}
+function status(p){
+  if(p.daysLeft===null) return ["g","Alcanza"];
+  if(p.daysLeft<=1) return ["r","Pedir ya"];
+  if(p.daysLeft<p.R) return ["a","Pedir pronto"];
+  return ["g","Alcanza"];
+}
+function reasons(n,p){
+  const m=DATA.productos[n], parts=[];
+  const fs=p.fc.slice(0,p.R);
+  const wk=fs.filter(x=>x.f["sábado"]||x.f["domingo"]).length;
+  if(wk) parts.push(`incluye ${wk===1?"un día":"días"} de fin de semana (hasta +${Math.round(Math.max(m.coeficientes["sábado"],m.coeficientes["domingo"])/m.intercepto*100)} %)`);
+  const q=fs.filter(x=>x.f.quincena); if(q.length && m.coeficientes.quincena>0.05) parts.push(`cae en quincena (+${Math.round(m.coeficientes.quincena/m.intercepto*100)} %)`);
+  const fe=fs.filter(x=>x.f.festivo); if(fe.length) parts.push(`hay festivo el ${DOW[fe[0].d.getDay()]} ${fe[0].d.getDate()}`);
+  return parts;
+}
+
+// ---------- render
+const $=id=>document.getElementById(id);
+function renderPhone(){
+  const ul=$("plist"); ul.innerHTML=""; let total=0, lines=[], urgent=0;
+  for(const n of NAMES){
+    const p=plan(n), [c,t]=status(p); if(c!=="g") urgent++;
+    const on=!state.off[n] && p.finalQty>0;
+    if(on){ total+=p.finalQty*DATA.productos[n].costo; lines.push(`• ${n}: ${p.finalQty} ${UNIT[n]||"und."}`); }
+    const li=document.createElement("li");
+    li.innerHTML=`<button class="pitem" type="button" aria-pressed="${n===state.prod}"><input type="checkbox" ${on?"checked":""} ${p.finalQty>0?"":"disabled"} aria-label="Incluir ${n} en el pedido"><span class="n">${n}<small>Quedan ${p.stock} · ${c==="g"?(p.daysLeft===null?"alcanza para la semana":"alcanza hasta que pase el proveedor"):(p.daysLeft<=0?"se acaba hoy":"se acaba el "+DOW[p.outDay.getDay()]+" "+p.outDay.getDate())}</small></span><span style="display:grid;justify-items:end;gap:3px"><span class="chip ${c}">${t}</span><span class="q num">${p.finalQty} und.</span></span></button>`;
+    li.querySelector("button").addEventListener("click",e=>{ if(e.target.tagName==="INPUT") return; state.prod=n; render(); });
+    li.querySelector("input").addEventListener("change",e=>{ state.off[n]=!e.target.checked; render(); });
+    ul.appendChild(li);
+  }
+  $("total").textContent=fmt(total);
+  $("aiCardTxt").textContent = urgent ? ` ${urgent} producto${urgent>1?"s":""} se acaba${urgent>1?"n":""} antes de que vuelva a pasar el proveedor.` : " Por ahora todo alcanza hasta la próxima visita del proveedor.";
+  const msg=`Hola, buen día. Le hago el pedido del Granero Central:\n${lines.join("\n")}\nGracias.`;
+  $("wa").href="https://wa.me/?text="+encodeURIComponent(msg);
+  $("copy").dataset.msg=msg;
+}
+function renderPanel(){
+  const n=state.prod, m=DATA.productos[n], p=plan(n);
+  $("selProd").value=n; $("selWeek").value=state.week; $("stock").value=p.stock;
+  const r=reasons(n,p);
+  $("dMsg").textContent = p.finalQty>0 ? `Pide ${p.finalQty} ${UNIT[n]||"unidades"} de ${n}.` : `No hace falta pedir ${n} por ahora.`;
+  $("dWhy").textContent = `La IA espera vender ${Math.round(p.dem)} hasta la próxima visita del proveedor (pasa cada ${p.R} día${p.R>1?"s":""})`
+    + (r.length?`, porque esa semana ${r.join(", ")}`:"") + `. Hoy tienes ${p.stock}` + (p.outDay?` y se acabarían el ${DOW[p.outDay.getDay()]} ${p.outDay.getDate()}`:" y alcanzan")
+    + `. Se suma un colchón de ${Math.round(p.safety)} por si la venta sube más de lo normal.` + (p.capped?` La cantidad se limita porque el producto vence en ${m.vida_util_dias} días.`:"");
+  $("dHuman").textContent = state.cmp ? `Con el cuaderno («pido lo que vendí la semana pasada») pedirías ${p.notebook}. ` + (state.manual[n]!=null?`Cambiaste la cantidad a mano: la IA sugería ${p.qty}.`:"") : (state.manual[n]!=null?`Cambiaste la cantidad a mano: la IA sugería ${p.qty}.`:"");
+  $("inList").innerHTML = `<li>Ventas de los últimos 14 días: <b class="num">${Math.round(p.base*14)}</b> (promedio ${p.base.toFixed(1).replace(".",",")} al día)</li><li>Calendario: día de la semana, quincena, festivos y diciembre</li><li>Unidades en el estante: <b class="num">${p.stock}</b></li><li>Visita del proveedor: cada ${p.R} día${p.R>1?"s":""}${m.vida_util_dias?`; vence en ${m.vida_util_dias} días`:""}</li>`;
+  const ref=m.intercepto, keys=["miércoles","jueves","viernes","sábado","domingo","quincena","festivo"];
+  const mx=Math.max(...keys.map(k=>Math.abs(m.coeficientes[k]/ref)),0.01);
+  $("factors").innerHTML = keys.map(k=>{const v=m.coeficientes[k]/ref; return `<div><span>${k[0].toUpperCase()+k.slice(1)}</span><i class="${v<0?"neg":""}" style="width:${Math.abs(v)/mx*100}%"></i><span class="num" style="text-align:right">${v>=0?"+":""}${Math.round(v*100)} %</span></div>`}).join("");
+  $("outList").innerHTML = `<li>Venta esperada en 7 días: <b class="num">${Math.round(p.fc.reduce((a,b)=>a+b.v,0))}</b></li><li>Se acaba: <b>${p.outDay?DOW[p.outDay.getDay()]+" "+p.outDay.getDate():"no esta semana"}</b></li><li>Pedido sugerido: <b class="num">${p.qty}</b> (${fmt(p.qty*m.costo)})</li><li>Alerta en el celular y mensaje listo para el proveedor</li>`;
+  $("chTitle").textContent = `${n}: ventas y pronóstico`;
+  $("lgCmp").hidden=!state.cmp;
+  drawChart(n,p);
+}
+function drawChart(n,p){
+  const hist=DATA.historial_28_dias[n].slice(-14), sd=DATA.productos[n].desviacion_error;
+  const histDates=[...Array(14)].map((_,i)=>{const d=new Date(LAST); d.setDate(d.getDate()-13+i); return d;});
+  const all=[...hist.map((v,i)=>({d:histDates[i],v,k:"h"})), ...p.fc.map(x=>({d:x.d,v:x.v,k:"f"}))];
+  const W=760,H=250,L=36,B=40,T=14,bw=(W-L-10)/all.length;
+  const ymax=Math.ceil(Math.max(...all.map(x=>x.v+(x.k==="f"?z*sd:0)), p.last7/7)*1.1/5)*5;
+  const y=v=>H-B-(v/ymax)*(H-B-T);
+  let s="";
+  for(let g=0;g<=4;g++){const v=ymax*g/4; s+=`<line x1="${L}" x2="${W-10}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${Math.round(v)}</text>`;}
+  const gapX=L+14*bw; s+=`<line x1="${gapX}" x2="${gapX}" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-dasharray="4 4"/><text x="${gapX+6}" y="${T+10}">semana planeada →</text>`;
+  all.forEach((x,i)=>{
+    const xx=L+i*bw+3, w=bw-6;
+    s+=`<rect x="${xx}" y="${y(x.v)}" width="${w}" height="${Math.max(0,H-B-y(x.v))}" rx="3" fill="${x.k==="h"?"var(--bar)":"var(--blue)"}"><title>${DOWS[x.d.getDay()]} ${x.d.getDate()}: ${x.v.toFixed(1)}</title></rect>`;
+    if(x.k==="f"){const cx=xx+w/2; s+=`<line x1="${cx}" x2="${cx}" y1="${y(x.v+z*sd)}" y2="${y(Math.max(0,x.v-z*sd))}" stroke="var(--navy)" stroke-width="1.5"/>`;}
+    const fq = x.k==="f" && (FEST.has(iso(x.d))||isQ(x.d));
+    s+=`<text x="${xx+w/2}" y="${H-B+14}" text-anchor="middle">${DOWS[x.d.getDay()]}</text><text x="${xx+w/2}" y="${H-B+27}" text-anchor="middle" ${fq?'style="fill:var(--orange);font-weight:700"':""}>${x.d.getDate()}${fq?(FEST.has(iso(x.d))?" F":" Q"):""}</text>`;
+  });
+  if(state.cmp){const v=p.last7/7; s+=`<line x1="${gapX}" x2="${W-10}" y1="${y(v)}" y2="${y(v)}" stroke="var(--orange)" stroke-width="3"/>`;}
+  $("chart").innerHTML=s;
+}
+function renderTests(){
+  const sim=DATA.simulacion, sum=(k,f)=>sim[k].reduce((a,b)=>a+b[f],0);
+  const M=DATA.metricas, avg=f=>M.reduce((a,b)=>a+b[f],0)/M.length;
+  $("testTxt").textContent=`El modelo se entrenó con las ventas del 8 de diciembre de 2025 al 27 de septiembre de 2026 y se probó con las 8 semanas siguientes (28 de septiembre al 22 de noviembre de 2026), que nunca vio. En la prueba se simuló la tienda pidiendo de dos maneras: «repongo lo que vendí» (cuaderno) y «pido lo que sugiere la IA». Ambas arrancaron con la estantería vacía.`;
+  const k=[["Días con algún producto agotado",sum("cuaderno","dias_agotado"),sum("ia","dias_agotado"),v=>v],
+    ["Ventas perdidas por agotados (unidades)",sum("cuaderno","ventas_perdidas_unid"),sum("ia","ventas_perdidas_unid"),v=>v],
+    ["Plata perdida en 8 semanas",sum("cuaderno","plata_perdida_cop"),sum("ia","plata_perdida_cop"),fmt],
+    ["Error promedio del pronóstico",avg("error_cuaderno_pct"),avg("error_ia_pct"),v=>v.toFixed(1)+" %"]];
+  $("kpis").innerHTML=k.map(([l,a,b,f])=>`<div class="kpi"><div class="l">${l}</div><div class="v num"><s>${f(a)}</s><b class="${b>a?"worse":""}">${f(b)}</b></div><div style="font-size:12px;color:var(--muted)">cuaderno → con IA</div></div>`).join("");
+  let t=`<thead><tr><th>Producto</th><th>Venta diaria</th><th>Error cuaderno</th><th>Error IA (Ridge)</th><th>Error Random Forest</th><th>Días agotado: cuaderno → IA</th></tr></thead><tbody>`;
+  M.forEach((m,i)=>{const best=Math.min(m.error_cuaderno_pct,m.error_ia_pct,m.error_rf_pct); const c=v=>v===best?' class="best"':"";
+    t+=`<tr><td>${m.producto}</td><td class="num">${m.venta_promedio_dia}</td><td class="num"${c(m.error_cuaderno_pct)}>${m.error_cuaderno_pct} %</td><td class="num"${c(m.error_ia_pct)}>${m.error_ia_pct} %</td><td class="num"${c(m.error_rf_pct)}>${m.error_rf_pct} %</td><td class="num">${sim.cuaderno[i].dias_agotado} → ${sim.ia[i].dias_agotado}</td></tr>`;});
+  $("tblErr").innerHTML=t+"</tbody>";
+}
+function render(){ renderPhone(); renderPanel(); }
+
+// ---------- eventos
+$("selProd").innerHTML=NAMES.map(n=>`<option>${n}</option>`).join("");
+$("selWeek").innerHTML=WEEKS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
+$("selProd").onchange=e=>{state.prod=e.target.value;render();};
+$("selWeek").onchange=e=>{state.week=e.target.value;state.manual={};render();};
+const setStock=v=>{const n=state.prod; state.stock[n]=Math.max(0,v)+state.sold[n]; delete state.manual[n]; render();};
+$("stock").oninput=e=>setStock(parseInt(e.target.value||"0",10));
+$("minus").onclick=()=>setStock(+$("stock").value-1);
+$("plus").onclick=()=>setStock(+$("stock").value+1);
+$("sell").onclick=()=>{const n=state.prod; if(state.stock[n]-state.sold[n]>0){state.sold[n]++; delete state.manual[n]; render();}};
+$("cmp").onchange=e=>{state.cmp=e.target.checked;render();};
+$("copy").onclick=async()=>{const t=$("copy").dataset.msg; try{await navigator.clipboard.writeText(t);$("copyok").textContent="Mensaje copiado. Pégalo en el chat del proveedor.";}catch(_){$("copyok").textContent=t;}};
+renderTests(); render();
+</script>
+
+</body>
+</html>
